@@ -18,16 +18,16 @@ print("Testing genre fetching with fallback logic")
 print("=" * 60)
 
 # Test 1: Track with no tags (should fall back to artist)
-print("\nTest 1: The Beatles - Let It Be")
+print("\nTest 1: Slowdive - When the sun hits")
 print("-" * 40)
-tags = fetch_track_tags("The Beatles", "Let It Be", api_key, base_url)
+tags = fetch_track_tags("Slowdive", "When the sun hits", api_key, base_url)
 print(f"Tags: {tags}")
 print("✓ Falls back to artist tags when track has none\n")
 
 # Test 2: Try a more recent popular track
-print("Test 2: The Weeknd - Blinding Lights")
+print("Test 2: Joy Division - Love will tear us apart")
 print("-" * 40)
-tags = fetch_track_tags("The Weeknd", "Blinding Lights", api_key, base_url)
+tags = fetch_track_tags("Joy Division", "Love will tear us apart", api_key, base_url)
 print(f"Tags: {tags}")
 print("✓ Gets track-specific tags or artist fallback\n")
 

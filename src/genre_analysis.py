@@ -7,19 +7,54 @@ log = logging.getLogger(__name__)
 
 
 def parse_genres_json(genres_str):
-    """Parse genres from JSON string or list representation."""
+    """Parse genres from JSON string or list representation.
+    
+    Handles:
+    - None/NaN values
+    - Already-parsed lists
+    - Valid JSON strings: ["rock", "pop"]
+    - Double-encoded JSON: "[\"rock\", \"pop\"]" (MySQL JSON columns)
+    - Fallback for malformed data
+    """
     if not genres_str or pd.isna(genres_str):
         return []
     
+    # Already a list
     if isinstance(genres_str, list):
         return genres_str
     
+    # String that needs parsing
     if isinstance(genres_str, str):
-        try:
-            # Handle string representation of list like "['rock', 'pop']"
-            return json.loads(genres_str.replace("'", '"'))
-        except:
+        # Handle empty strings or empty JSON arrays
+        if genres_str.strip() in ['', '[]', 'None']:
             return []
+        
+        try:
+            # First parse attempt - handles both single and double-encoded JSON
+            parsed = json.loads(genres_str)
+            
+            # If result is a list, we're done
+            if isinstance(parsed, list):
+                return parsed
+            
+            # If result is a string (double-encoded JSON), parse again
+            if isinstance(parsed, str):
+                try:
+                    double_parsed = json.loads(parsed)
+                    return double_parsed if isinstance(double_parsed, list) else []
+                except json.JSONDecodeError:
+                    return []
+            
+            return []
+            
+        except json.JSONDecodeError:
+            # Fallback: try to handle Python string representation with single quotes
+            try:
+                json_str = genres_str.replace("'", '"')
+                parsed = json.loads(json_str)
+                return parsed if isinstance(parsed, list) else []
+            except json.JSONDecodeError:
+                return []
     
     return []
 
@@ -36,7 +71,7 @@ def calculate_genre_stats(engine) -> dict:
     df = pd.read_sql(query, engine)
     
     if df.empty:
-        log.warning("No scrobbles found for genre analysis.")
+        log.warning("No scrobbles found in DB — skipping stats calculation.")
         return {}
     
     # Parse genres from JSON

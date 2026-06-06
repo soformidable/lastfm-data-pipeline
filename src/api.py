@@ -1,5 +1,6 @@
 import time
 import logging
+import json
 import requests
 import pandas as pd
 from datetime import datetime, timezone
@@ -138,7 +139,7 @@ def parse_tracks(raw_tracks: list, api_key: str = None, base_url: str = None, fe
             "Track":       track,
             "Date_played": played_local.date(),
             "Time_played": played_local.time().replace(microsecond=0),
-            "Genres":      genres,  # Always include this key
+            "Genres":      genres,  # Always include this key (as list)
         })
     return rows
 
@@ -165,13 +166,15 @@ def fetch_all_scrobbles(username: str, api_key: str, base_url: str, from_ts: int
         all_rows.extend(parse_tracks(data["recenttracks"]["track"], api_key, base_url, fetch_genres))
         log.info("  Page %d / %d fetched (%d rows so far).", page, total_pages, len(all_rows))
 
-    df = pd.DataFrame(all_rows).drop_duplicates()
+    df = pd.DataFrame(all_rows)
     
-    # Only convert Genres if the column exists
+    # Convert Genres lists to proper JSON strings BEFORE drop_duplicates() 
+    # (lists are unhashable and cause TypeError)
     if "Genres" in df.columns:
-        df["Genres"] = df["Genres"].apply(lambda x: str(x) if isinstance(x, list) else x)
-    else:
-        log.warning("Genres column not found in DataFrame. This may indicate an issue with parse_tracks().")
+        df["Genres"] = df["Genres"].apply(lambda x: json.dumps(x) if isinstance(x, list) else x)
+    
+    # Now we can safely drop duplicates
+    df = df.drop_duplicates()
     
     log.info("Fetch complete. %d unique rows ready for insertion.", len(df))
     return df
