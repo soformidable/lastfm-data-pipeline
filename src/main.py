@@ -19,7 +19,7 @@ LASTFM_API_KEY  = os.getenv("LASTFM_API_KEY")
 LASTFM_USERNAME = os.getenv("LASTFM_USERNAME", "soformidable")
 LASTFM_BASE_URL = "http://ws.audioscrobbler.com/2.0/"
 
-
+# Main execution flow
 def main():
     if not LASTFM_API_KEY:
         raise EnvironmentError("LASTFM_API_KEY is not set in your .env file.")

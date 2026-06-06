@@ -68,6 +68,38 @@ def upsert_scrobbles(engine, df: pd.DataFrame):
     log.info("Inserted %d new scrobble row(s).", result.rowcount)
 
 
+# Update function to set the null albums to correct values
+def update_albums(engine):
+    sql = text("""
+                    UPDATE lastfm_scrobbles T
+            INNER JOIN (
+                SELECT
+                    U.Artist,
+                    U.Track,
+                    U.Date_played,
+                    U.Time_played,
+                    MIN(S.Album) AS Album,
+                    MIN(U.scrobble_id) AS min_id   -- ← pull the MIN id up here instead
+                FROM lastfm_scrobbles U
+                INNER JOIN (
+                    SELECT Artist, Track, MIN(Album) AS Album
+                    FROM lastfm_scrobbles
+                    WHERE Album IS NOT NULL
+                    GROUP BY Artist, Track
+                ) S ON U.Artist = S.Artist AND U.Track = S.Track
+                WHERE U.Album IS NULL
+                GROUP BY U.Artist, U.Track, U.Date_played, U.Time_played
+            ) S ON T.scrobble_id = S.min_id       -- ← join on the ID directly, no subquery needed
+            SET T.Album = S.Album
+            WHERE T.Album IS NULL;
+               """)
+    with engine.begin() as conn:
+        conn.execute(sql)
+    log.info("Album update completed.")
+    
+
+       
+# Upsert the stats row (there's only one) with the latest calculated stats.
 def upsert_stats(engine, stats: dict):
     if not stats:
         return
