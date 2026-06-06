@@ -33,7 +33,7 @@ def main():
     else:
         log.info("Empty DB detected — performing full historical fetch.")
 
-    df = fetch_all_scrobbles(LASTFM_USERNAME, LASTFM_API_KEY, LASTFM_BASE_URL, from_ts, fetch_genres=False)
+    df = fetch_all_scrobbles(LASTFM_USERNAME, LASTFM_API_KEY, LASTFM_BASE_URL, from_ts, fetch_genres=True)
     upsert_scrobbles(engine, df)
 
     stats = calculate_stats(engine)

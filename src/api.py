@@ -35,7 +35,9 @@ def fetch_page(username: str, api_key: str, page: int, from_ts: int | None, base
 
 
 def fetch_track_tags(artist: str, track: str, api_key: str, base_url: str) -> list[str]:
-    """Fetch top tags (genres) for a specific track from Last.fm."""
+    """Fetch top tags (genres) for a specific track from Last.fm.
+    Falls back to artist tags if track tags are empty.
+    """
     cache_key = f"{artist}|{track}"
     if cache_key in _genre_cache:
         return _genre_cache[cache_key]
@@ -54,7 +56,12 @@ def fetch_track_tags(artist: str, track: str, api_key: str, base_url: str) -> li
         
         tags = []
         if "track" in data and "toptags" in data["track"]:
-            tags = [tag["name"] for tag in data["track"]["toptags"]["tag"][:5]]  # Top 5 tags
+            tags = [tag["name"] for tag in data["track"]["toptags"]["tag"][:5]]
+        
+        # If track has no tags, fall back to artist tags
+        if not tags and artist:
+            log.debug("No tags for track '%s' - %s, falling back to artist tags.", track, artist)
+            tags = fetch_artist_tags(artist, api_key, base_url)
         
         _genre_cache[cache_key] = tags
         time.sleep(RATE_SLEEP)
@@ -84,7 +91,7 @@ def fetch_artist_tags(artist: str, api_key: str, base_url: str) -> list[str]:
         
         tags = []
         if "toptags" in data:
-            tags = [tag["name"] for tag in data["toptags"]["tag"][:5]]  # Top 5 tags
+            tags = [tag["name"] for tag in data["toptags"]["tag"][:5]]
         
         _genre_cache[cache_key] = tags
         time.sleep(RATE_SLEEP)
@@ -131,7 +138,7 @@ def parse_tracks(raw_tracks: list, api_key: str = None, base_url: str = None, fe
             "Track":       track,
             "Date_played": played_local.date(),
             "Time_played": played_local.time().replace(microsecond=0),
-            "Genres":      genres,
+            "Genres":      genres,  # Always include this key
         })
     return rows
 
@@ -159,7 +166,12 @@ def fetch_all_scrobbles(username: str, api_key: str, base_url: str, from_ts: int
         log.info("  Page %d / %d fetched (%d rows so far).", page, total_pages, len(all_rows))
 
     df = pd.DataFrame(all_rows).drop_duplicates()
-    # Convert genres list to JSON string for storage
-    df["Genres"] = df["Genres"].apply(lambda x: str(x) if isinstance(x, list) else x)
+    
+    # Only convert Genres if the column exists
+    if "Genres" in df.columns:
+        df["Genres"] = df["Genres"].apply(lambda x: str(x) if isinstance(x, list) else x)
+    else:
+        log.warning("Genres column not found in DataFrame. This may indicate an issue with parse_tracks().")
+    
     log.info("Fetch complete. %d unique rows ready for insertion.", len(df))
     return df

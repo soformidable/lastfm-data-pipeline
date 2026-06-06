@@ -5,8 +5,6 @@ import plotly.graph_objects as go
 import sys
 from pathlib import Path
 from datetime import timedelta
-import sys
-from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.genre_analysis import get_artist_genres, get_genre_trends_by_period, parse_genres_json
 
