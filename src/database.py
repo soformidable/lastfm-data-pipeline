@@ -67,7 +67,6 @@ def upsert_scrobbles(engine, df: pd.DataFrame):
         result = conn.execute(stmt)
     log.info("Inserted %d new scrobble row(s).", result.rowcount)
 
-
 # Update function to set the null albums to correct values
 def update_albums(engine):
     sql = text("""
