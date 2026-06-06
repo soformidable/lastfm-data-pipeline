@@ -415,6 +415,99 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
+# Enhanced version with more details - Add to dashboard/app.py
+# Place this after the HERO section
+
+# ─────────────────────────────────────────────
+#  Last Played Track (Enhanced)
+# ─────────────────────────────────────────────
+st.markdown('<div class="section-label">now playing</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-title">Last Played</div>', unsafe_allow_html=True)
+
+# Parse genres if they exist
+if "Genres" in df.columns and "Genres_parsed" not in df.columns:
+    df["Genres_parsed"] = df["Genres"].apply(parse_genres_json)
+
+# Get the most recent track
+latest_row = df.loc[df["Played_At"].idxmax()]
+latest_track = latest_row["Track"]
+latest_artist = latest_row["Artist"]
+latest_album = latest_row["Album"]
+latest_genres = latest_row.get("Genres_parsed", []) if "Genres_parsed" in df.columns else []
+latest_time = latest_row["Played_At"]
+
+# Calculate time ago
+time_now = df["Played_At"].max()
+time_diff = time_now - latest_time
+
+if time_diff.total_seconds() < 60:
+    time_ago = "Just now"
+elif time_diff.total_seconds() < 3600:
+    mins = int(time_diff.total_seconds() / 60)
+    time_ago = "{} minute{} ago".format(mins, "s" if mins > 1 else "")
+elif time_diff.total_seconds() < 86400:
+    hours = int(time_diff.total_seconds() / 3600)
+    time_ago = "{} hour{} ago".format(hours, "s" if hours > 1 else "")
+else:
+    days = int(time_diff.total_seconds() / 86400)
+    time_ago = "{} day{} ago".format(days, "s" if days > 1 else "")
+
+# Get play count for this track
+track_play_count = len(df[df["Track"] == latest_track])
+artist_play_count = len(df[df["Artist"] == latest_artist])
+
+# Get genres display
+if isinstance(latest_genres, list) and latest_genres:
+    genres_display = " · ".join(latest_genres[:3])
+    genres_html = '<div style="font-family: var(--mono); font-size: 0.8rem; color: var(--accent); margin: 0.8rem 0;">{}</div>'.format(genres_display)
+else:
+    genres_html = ""
+
+# Create the card
+col_left, col_right = st.columns([3, 1])
+
+with col_left:
+    st.markdown("""
+    <div class="card" style="border-left: 4px solid var(--accent);">
+        <div style="font-family: var(--serif); font-size: 2rem; color: var(--text); margin-bottom: 0.3rem; line-height: 1.1; word-wrap: break-word;">
+            {}
+        </div>
+        <div style="font-family: var(--sans); font-size: 1.1rem; color: var(--accent); margin-bottom: 0.2rem; font-weight: 500;">
+            {}
+        </div>
+        {}
+        {}
+        <div style="font-family: var(--mono); font-size: 0.75rem; color: var(--muted); margin-top: 1rem; letter-spacing: 0.08em;">
+            {} · {}
+        </div>
+    </div>
+    """.format(
+        latest_track if latest_track else "Unknown Track",
+        latest_artist if latest_artist else "Unknown Artist",
+        '<div style="font-family: var(--mono); font-size: 0.78rem; color: var(--muted); margin-bottom: 0.6rem;">{}</div>'.format(latest_album) if latest_album else "",
+        genres_html,
+        time_ago,
+        latest_time.strftime("%d %b %Y, %H:%M")
+    ), unsafe_allow_html=True)
+
+with col_right:
+    st.markdown("""
+    <div class="card">
+        <div class="card-label">Track Plays</div>
+        <div class="card-value">{}</div>
+        <div class="card-sub">in selected range</div>
+        <br>
+        <div class="card-label">Artist Plays</div>
+        <div class="card-value">{}</div>
+        <div class="card-sub">in selected range</div>
+    </div>
+    """.format(
+        track_play_count,
+        artist_play_count
+    ), unsafe_allow_html=True)
+
+st.markdown("<hr class='divider'>", unsafe_allow_html=True) 
+
 # ─────────────────────────────────────────────
 #  KPI row
 # ─────────────────────────────────────────────
