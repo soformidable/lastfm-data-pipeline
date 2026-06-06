@@ -53,6 +53,38 @@ html, body, [data-testid="stAppViewContainer"] {
 }
 [data-testid="stSidebar"] * { color: var(--text) !important; }
 
+/* Date input — fix white background / white text in dark theme */
+[data-testid="stSidebar"] [data-baseweb="input"],
+[data-testid="stSidebar"] [data-baseweb="base-input"],
+[data-testid="stSidebar"] input[type="text"] {
+    background-color: var(--surface2) !important;
+    color: var(--text) !important;
+    border-color: var(--border) !important;
+}
+[data-testid="stSidebar"] [data-baseweb="input"]:focus-within,
+[data-testid="stSidebar"] [data-baseweb="base-input"]:focus-within {
+    border-color: var(--accent) !important;
+}
+/* Calendar popover */
+[data-baseweb="calendar"],
+[data-baseweb="popover"] [data-baseweb="calendar"] {
+    background-color: var(--surface2) !important;
+    border: 1px solid var(--border) !important;
+}
+[data-baseweb="calendar"] button,
+[data-baseweb="calendar"] [role="option"] {
+    background-color: transparent !important;
+    color: var(--text) !important;
+}
+[data-baseweb="calendar"] button:hover,
+[data-baseweb="calendar"] [role="option"]:hover {
+    background-color: var(--border) !important;
+}
+[data-baseweb="calendar"] [aria-selected="true"] {
+    background-color: var(--accent) !important;
+    color: #fff !important;
+}
+
 /* Hide default header */
 header[data-testid="stHeader"] { display: none; }
 
