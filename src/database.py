@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text, Table, MetaData
 from sqlalchemy.dialects.mysql import insert
@@ -9,6 +10,10 @@ load_dotenv()
 
 log = logging.getLogger(__name__)
 
+def _load_schema_sql() -> str:
+    """Load and return the SQL schema file contents."""
+    schema_path = Path(__file__).resolve().parent.parent / "sql" / "schema.sql"
+    return schema_path.read_text()
 
 def get_engine():
     return create_engine(
@@ -23,35 +28,12 @@ def get_engine():
 
 
 def ensure_tables(engine):
+    schema_sql = _load_schema_sql()
     with engine.begin() as conn:
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS lastfm_scrobbles (
-                scrobble_id  BIGINT AUTO_INCREMENT PRIMARY KEY,
-                Artist       VARCHAR(255),
-                Album        VARCHAR(255),
-                Track        VARCHAR(255),
-                Date_played  DATE,
-                Time_played  TIME,
-                UNIQUE KEY uq_scrobble (Artist, Album, Track, Date_played, Time_played)
-            )
-        """))
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS Last_fm_stats (
-                stat_id                INT PRIMARY KEY,
-                latest_scrobble_time   DATETIME,
-                latest_scrobble_track  VARCHAR(255),
-                latest_scrobble_artist VARCHAR(255),
-                top_track              VARCHAR(255),
-                top_track_count        INT,
-                top_artist             VARCHAR(255),
-                top_artist_count       INT,
-                top_date               DATE,
-                top_date_count         INT,
-                best_day_of_week       VARCHAR(50),
-                best_day_avg           FLOAT,
-                saturated_track        VARCHAR(255)
-            )
-        """))
+        for statement in schema_sql.split(";"):
+            stripped = statement.strip()
+            if stripped:
+                conn.execute(text(stripped))
     log.info("Tables verified / created.")
 
 
