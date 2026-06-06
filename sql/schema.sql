@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS lastfm_scrobbles (
     Track        VARCHAR(255),
     Date_played  DATE,
     Time_played  TIME,
+    Genres       JSON,
     UNIQUE KEY uq_scrobble (Artist, Album, Track, Date_played, Time_played)
 );
 

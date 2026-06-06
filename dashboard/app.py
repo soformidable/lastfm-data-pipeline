@@ -5,6 +5,10 @@ import plotly.graph_objects as go
 import sys
 from pathlib import Path
 from datetime import timedelta
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from src.genre_analysis import get_artist_genres, get_genre_trends_by_period, parse_genres_json
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.database import get_engine
@@ -610,6 +614,98 @@ with col_2:
     st.plotly_chart(fig_tt, use_container_width=True)
 
 st.markdown("<hr class='divider'>", unsafe_allow_html=True)
+
+# Then add this section to your dashboard after the "Artist Explorer" section:
+
+# ─────────────────────────────────────────────
+#  Genre Analysis
+# ─────────────────────────────────────────────
+st.markdown('<div class="section-label">genre analysis</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-title">Genres by Artist</div>', unsafe_allow_html=True)
+
+# Parse genres from the filtered dataframe
+df["Genres_parsed"] = df["Genres"].apply(parse_genres_json)
+
+# Get all genres from filtered data
+all_genres_filtered = []
+for genres_list in df["Genres_parsed"]:
+    all_genres_filtered.extend(genres_list)
+
+# Top genres overall (filtered by date range)
+genre_counter = pd.Series(all_genres_filtered).value_counts()
+top_genres_df = genre_counter.head(15).reset_index()
+top_genres_df.columns = ["Genre", "Plays"]
+
+col_tg, col_ga = st.columns([2, 3])
+
+with col_tg:
+    fig_genres = px.bar(
+        top_genres_df, x="Plays", y="Genre", orientation="h",
+        color_discrete_sequence=["#7c6af7"]
+    )
+    fig_genres.update_layout(yaxis=dict(autorange="reversed"))
+    apply_layout(fig_genres, title="Top 15 Genres (by play count)")
+    st.plotly_chart(fig_genres, use_container_width=True)
+
+with col_ga:
+    # Artist -> Genre mapping
+    artist_genre_map = {}
+    for _, row in df.iterrows():
+        artist = row["Artist"]
+        genres = row["Genres_parsed"]
+        
+        if artist not in artist_genre_map:
+            artist_genre_map[artist] = []
+        artist_genre_map[artist].extend(genres)
+    
+    # Show top artist and their genres
+    if top_artist_name in artist_genre_map:
+        top_artist_genres = artist_genre_map[top_artist_name]
+        if top_artist_genres:
+            genre_dist = pd.Series(top_artist_genres).value_counts().head(5)
+            st.markdown(f"""
+            <div class="card">
+                <div class="card-label">Top Artist's Genres</div>
+                <div class="card-value">{top_artist_name}</div>
+                <div class="card-sub">Primary genres in your listening</div>
+            """, unsafe_allow_html=True)
+            
+            for genre, count in genre_dist.items():
+                st.markdown(f"<p style='margin:0.3rem 0;'><strong>{genre}</strong> ({count} scrobbles)</p>", unsafe_allow_html=True)
+            
+            st.markdown("</div>", unsafe_allow_html=True)
+
+st.markdown("<hr class='divider'>", unsafe_allow_html=True)
+
+# ─────────────────────────────────────────────
+#  Genre Evolution
+# ─────────────────────────────────────────────
+st.markdown('<div class="section-label">genre trends</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-title">Genre Popularity Over Time</div>', unsafe_allow_html=True)
+
+# Get top 6 genres and track them over time
+top_6_genres = genre_counter.head(6).index.tolist()
+
+genre_trend_data = []
+for _, row in df.iterrows():
+    period = row[period_col]  # Uses the view_mode period from earlier
+    for genre in row["Genres_parsed"]:
+        if genre in top_6_genres:
+            genre_trend_data.append({"Period": period, "Genre": genre})
+
+if genre_trend_data:
+    genre_trend_df = pd.DataFrame(genre_trend_data)
+    genre_trend_agg = genre_trend_df.groupby(["Period", "Genre"]).size().reset_index(name="Count")
+    
+    fig_gen_trend = px.line(
+        genre_trend_agg, x="Period", y="Count", color="Genre",
+        color_discrete_sequence=["#e8365d", "#ff8c42", "#7c6af7", "#4ecdc4", "#ffe66d", "#a8edea"]
+    )
+    apply_layout(fig_gen_trend, title=None, xaxis_tickangle=-45)
+    st.plotly_chart(fig_gen_trend, use_container_width=True)
+
+st.markdown("<hr class='divider'>", unsafe_allow_html=True)
+
 
 # ─────────────────────────────────────────────
 #  Curiosities row
