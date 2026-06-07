@@ -436,8 +436,11 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
+# Fixed Last Played Track section for dashboard/app.py
+# Replace lines 440-533 with this code
+
 # ─────────────────────────────────────────────
-#  Last Played Track (Fixed)
+#  Last Played Track (Fixed - HTML rendering)
 # ─────────────────────────────────────────────
 st.markdown('<div class="section-label">now playing</div>', unsafe_allow_html=True)
 st.markdown('<div class="section-title">Last Played</div>', unsafe_allow_html=True)
@@ -450,11 +453,9 @@ latest_album = latest_row["Album"]
 latest_genres = latest_row.get("Genres_parsed", []) if "Genres_parsed" in df.columns else []
 latest_time = latest_row["Played_At"]
 
-# Calculate time ago (vs actual current time)
-from datetime import datetime
-
-now_actual = datetime.now(latest_time.tz) if latest_time.tzinfo else datetime.now()
-time_diff = now_actual - latest_time
+# Calculate time ago
+time_now = df["Played_At"].max()
+time_diff = time_now - latest_time
 
 if time_diff.total_seconds() < 60:
     time_ago = "Just now"
@@ -476,59 +477,30 @@ artist_play_count = len(df[df["Artist"] == latest_artist])
 col_left, col_right = st.columns([3, 1])
 
 with col_left:
-        # Build album HTML if it exists (handle NaN values properly)
-    album_html = ""
+    # Build album HTML if it exists
+    album_section = ""
     if latest_album and not (isinstance(latest_album, float) and pd.isna(latest_album)):
-        album_html = '<div style="font-family: var(--mono); font-size: 0.78rem; color: var(--muted); margin-bottom: 0.6rem;">{}</div>'.format(latest_album)
+        album_section = '<div style="font-family: var(--mono); font-size: 0.78rem; color: var(--muted); margin-bottom: 0.6rem;">' + str(latest_album) + '</div>'
     
     # Build genres HTML if they exist
-    genres_html = ""
-    if isinstance(latest_genres, list) and latest_genres:
-        clean_genres = [str(g) for g in latest_genres if g]
-        genres_display = " · ".join(clean_genres[:3])
-        genres_html = '<div style="font-family: var(--mono); font-size: 0.8rem; color: var(--accent); margin: 0.8rem 0;">{}</div>'.format(genres_display)
+    genres_section = ""
+    if isinstance(latest_genres, list) and len(latest_genres) > 0:
+        clean_genres = [str(g).strip() for g in latest_genres if g]
+        if clean_genres:
+            genres_display = " · ".join(clean_genres[:3])
+            genres_section = '<div style="font-family: var(--mono); font-size: 0.8rem; color: var(--accent); margin: 0.8rem 0;">' + genres_display + '</div>'
     
-    # Combine all HTML
-    card_html = """
-    <div class="card" style="border-left: 4px solid var(--accent);">
-        <div style="font-family: var(--serif); font-size: 2rem; color: var(--text); margin-bottom: 0.3rem; line-height: 1.1; word-wrap: break-word;">
-            {}
-        </div>
-        <div style="font-family: var(--sans); font-size: 1.1rem; color: var(--accent); margin-bottom: 0.2rem; font-weight: 500;">
-            {}
-        </div>
-        {}
-        {}
-        <div style="font-family: var(--mono); font-size: 0.75rem; color: var(--muted); margin-top: 1rem; letter-spacing: 0.08em;">
-            {} · {}
-        </div>
-    </div>
-    """.format(
-        latest_track if latest_track else "Unknown Track",
-        latest_artist if latest_artist else "Unknown Artist",
-        album_html,
-        genres_html,
-        time_ago,
-        latest_time.strftime("%d %b %Y, %H:%M")
-    )
-        # Render the card HTML instead of showing raw code
+    # Build the complete card
+    track_name = str(latest_track) if latest_track else "Unknown Track"
+    artist_name = str(latest_artist) if latest_artist else "Unknown Artist"
+    timestamp = latest_time.strftime("%d %b %Y, %H:%M")
+    
+    card_html = '<div class="card" style="border-left: 4px solid var(--accent);"><div style="font-family: var(--serif); font-size: 2rem; color: var(--text); margin-bottom: 0.3rem; line-height: 1.1; word-wrap: break-word;">' + track_name + '</div><div style="font-family: var(--sans); font-size: 1.1rem; color: var(--accent); margin-bottom: 0.2rem; font-weight: 500;">' + artist_name + '</div>' + album_section + genres_section + '<div style="font-family: var(--mono); font-size: 0.75rem; color: var(--muted); margin-top: 1rem; letter-spacing: 0.08em;">' + time_ago + ' · ' + timestamp + '</div></div>'
+    
     st.markdown(card_html, unsafe_allow_html=True)
 
 with col_right:
-    st.markdown("""
-    <div class="card">
-        <div class="card-label">Track Plays</div>
-        <div class="card-value">{}</div>
-        <div class="card-sub">in selected range</div>
-        <br>
-        <div class="card-label">Artist Plays</div>
-        <div class="card-value">{}</div>
-        <div class="card-sub">in selected range</div>
-    </div>
-    """.format(
-        track_play_count,
-        artist_play_count
-    ), unsafe_allow_html=True)
+    st.markdown('<div class="card"><div class="card-label">Track Plays</div><div class="card-value">' + str(track_play_count) + '</div><div class="card-sub">in selected range</div><br><div class="card-label">Artist Plays</div><div class="card-value">' + str(artist_play_count) + '</div><div class="card-sub">in selected range</div></div>', unsafe_allow_html=True)
 
 st.markdown("<hr class='divider'>", unsafe_allow_html=True)
 
