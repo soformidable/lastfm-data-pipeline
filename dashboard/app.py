@@ -378,6 +378,8 @@ if df.empty:
     st.warning("No scrobbles in selected date range.")
     st.stop()
 
+df["Genres_parsed"] = df["Genres"].apply(parse_genres_json)
+
 # ─────────────────────────────────────────────
 #  Derived stats
 # ─────────────────────────────────────────────
@@ -434,18 +436,11 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# Enhanced version with more details - Add to dashboard/app.py
-# Place this after the HERO section
-
 # ─────────────────────────────────────────────
-#  Last Played Track (Enhanced)
+#  Last Played Track (Fixed)
 # ─────────────────────────────────────────────
 st.markdown('<div class="section-label">now playing</div>', unsafe_allow_html=True)
 st.markdown('<div class="section-title">Last Played</div>', unsafe_allow_html=True)
-
-# Parse genres if they exist
-if "Genres" in df.columns and "Genres_parsed" not in df.columns:
-    df["Genres_parsed"] = df["Genres"].apply(parse_genres_json)
 
 # Get the most recent track
 latest_row = df.loc[df["Played_At"].idxmax()]
@@ -455,9 +450,11 @@ latest_album = latest_row["Album"]
 latest_genres = latest_row.get("Genres_parsed", []) if "Genres_parsed" in df.columns else []
 latest_time = latest_row["Played_At"]
 
-# Calculate time ago
-time_now = df["Played_At"].max()
-time_diff = time_now - latest_time
+# Calculate time ago (vs actual current time)
+from datetime import datetime
+
+now_actual = datetime.now(latest_time.tz) if latest_time.tzinfo else datetime.now()
+time_diff = now_actual - latest_time
 
 if time_diff.total_seconds() < 60:
     time_ago = "Just now"
@@ -475,18 +472,24 @@ else:
 track_play_count = len(df[df["Track"] == latest_track])
 artist_play_count = len(df[df["Artist"] == latest_artist])
 
-# Get genres display
-if isinstance(latest_genres, list) and latest_genres:
-    genres_display = " · ".join(latest_genres[:3])
-    genres_html = '<div style="font-family: var(--mono); font-size: 0.8rem; color: var(--accent); margin: 0.8rem 0;">{}</div>'.format(genres_display)
-else:
-    genres_html = ""
-
-# Create the card
+# Build the card HTML with proper genre handling
 col_left, col_right = st.columns([3, 1])
 
 with col_left:
-    st.markdown("""
+        # Build album HTML if it exists (handle NaN values properly)
+    album_html = ""
+    if latest_album and not (isinstance(latest_album, float) and pd.isna(latest_album)):
+        album_html = '<div style="font-family: var(--mono); font-size: 0.78rem; color: var(--muted); margin-bottom: 0.6rem;">{}</div>'.format(latest_album)
+    
+    # Build genres HTML if they exist
+    genres_html = ""
+    if isinstance(latest_genres, list) and latest_genres:
+        clean_genres = [str(g) for g in latest_genres if g]
+        genres_display = " · ".join(clean_genres[:3])
+        genres_html = '<div style="font-family: var(--mono); font-size: 0.8rem; color: var(--accent); margin: 0.8rem 0;">{}</div>'.format(genres_display)
+    
+    # Combine all HTML
+    card_html = """
     <div class="card" style="border-left: 4px solid var(--accent);">
         <div style="font-family: var(--serif); font-size: 2rem; color: var(--text); margin-bottom: 0.3rem; line-height: 1.1; word-wrap: break-word;">
             {}
@@ -503,11 +506,13 @@ with col_left:
     """.format(
         latest_track if latest_track else "Unknown Track",
         latest_artist if latest_artist else "Unknown Artist",
-        '<div style="font-family: var(--mono); font-size: 0.78rem; color: var(--muted); margin-bottom: 0.6rem;">{}</div>'.format(latest_album) if latest_album else "",
+        album_html,
         genres_html,
         time_ago,
         latest_time.strftime("%d %b %Y, %H:%M")
-    ), unsafe_allow_html=True)
+    )
+        # Render the card HTML instead of showing raw code
+    st.markdown(card_html, unsafe_allow_html=True)
 
 with col_right:
     st.markdown("""
@@ -525,7 +530,7 @@ with col_right:
         artist_play_count
     ), unsafe_allow_html=True)
 
-st.markdown("<hr class='divider'>", unsafe_allow_html=True) 
+st.markdown("<hr class='divider'>", unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────
 #  KPI row
@@ -733,8 +738,6 @@ st.markdown("<hr class='divider'>", unsafe_allow_html=True)
 st.markdown('<div class="section-label">genre analysis</div>', unsafe_allow_html=True)
 st.markdown('<div class="section-title">Genres by Artist</div>', unsafe_allow_html=True)
 
-# Parse genres from the filtered dataframe
-df["Genres_parsed"] = df["Genres"].apply(parse_genres_json)
 
 # Get all genres from filtered data
 all_genres_filtered = []
