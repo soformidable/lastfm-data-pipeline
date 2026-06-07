@@ -311,6 +311,25 @@ if df_full.empty:
     st.warning("No scrobbles found. Run the fetch script first.")
     st.stop()
 
+# Add this code to dashboard/app.py
+# Insert RIGHT AFTER the st.set_page_config() and CSS st.markdown() sections
+# And BEFORE the "with st.sidebar:" section
+
+# ─────────────────────────────────────────────
+#  User Header
+# ─────────────────────────────────────────────
+st.markdown("""
+<div style='display: flex; align-items: center; justify-content: space-between; margin-bottom: 2.5rem; padding: 1.5rem 0;'>
+    <div style='font-family: var(--serif); font-size: 2.6rem; color: var(--text); letter-spacing: -0.02em;'>
+        soformidable
+    </div>
+    <div style='font-family: var(--mono); font-size: 0.7rem; color: var(--accent); letter-spacing: 0.15em; text-transform: uppercase;'>
+        🎵 Music Analytics
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+
 # ─────────────────────────────────────────────
 #  Sidebar
 # ─────────────────────────────────────────────

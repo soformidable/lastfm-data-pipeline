@@ -103,18 +103,25 @@ def fetch_artist_tags(artist: str, api_key: str, base_url: str) -> list[str]:
         return []
 
 
-def parse_tracks(raw_tracks: list, api_key: str = None, base_url: str = None, fetch_genres: bool = True) -> list[dict]:
+def parse_tracks(raw_tracks, api_key: str = None, base_url: str = None, fetch_genres: bool = True) -> list[dict]:
     """Convert the raw API track list into clean dicts ready for the DB.
     
     Args:
-        raw_tracks: List of raw track data from Last.fm API
+        raw_tracks: Track data from Last.fm API (can be a dict or list)
         api_key: Last.fm API key (required if fetch_genres=True)
         base_url: Last.fm API base URL (required if fetch_genres=True)
         fetch_genres: Whether to fetch genre tags (slower, makes extra API calls)
     """
+    # Handle case where API returns a single track as dict instead of list
+    if isinstance(raw_tracks, dict):
+        raw_tracks = [raw_tracks]
+    
     rows = []
     for t in raw_tracks:
-        # Skip the 'now playing' entry — it has no date
+        # Skip non-dict items and the 'now playing' entry
+        if not isinstance(t, dict):
+            continue
+            
         if t.get("@attr", {}).get("nowplaying"):
             continue
 
