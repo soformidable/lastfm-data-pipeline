@@ -1,0 +1,50 @@
+name: Daily Last.fm Sync
+
+on:
+  # Run at 18:30 UTC every day (= 00:00 IST)
+  schedule:
+    - cron: '30 18 * * *'
+  
+  # Allow manual trigger from Actions tab
+  workflow_dispatch:
+
+jobs:
+  sync-scrobbles:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Create .env file
+        run: |
+          cat > .env << EOF
+          LASTFM_API_KEY=${{ secrets.LASTFM_API_KEY }}
+          LASTFM_USERNAME=${{ secrets.LASTFM_USERNAME }}
+          DB_USERNAME=${{ secrets.DB_USERNAME }}
+          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          DB_HOST=${{ secrets.DB_HOST }}
+          DB_PORT=${{ secrets.DB_PORT }}
+          DB_NAME=${{ secrets.DB_NAME }}
+          EOF
+      
+      - name: Run sync script
+        run: python src/main.py
+      
+      - name: Notify on failure
+        if: failure()
+        run: echo "Last.fm sync failed! Check the logs."
+
+      - name: Notify on success
+        if: success()
+        run: echo "Last.fm sync completed successfully!"
