@@ -5,6 +5,7 @@ from sqlalchemy import create_engine, text, Table, MetaData
 from sqlalchemy.dialects.mysql import insert
 import pandas as pd
 import logging
+import json
 
 load_dotenv()
 
@@ -58,6 +59,19 @@ def upsert_scrobbles(engine, df: pd.DataFrame):
         log.info("No new scrobbles to insert.")
         return
 
+    # Clean up NaN and None values
+    df = df.copy()
+    
+    # Replace NaN with None for all columns
+    df = df.where(pd.notna(df), None)
+    
+    # Handle Genres column specifically
+    if "Genres" in df.columns:
+        # Replace empty strings and 'None' strings with NULL
+        df["Genres"] = df["Genres"].apply(
+            lambda x: None if (x is None or x == '' or x == 'None' or x == '[]') else x
+        )
+    
     metadata = MetaData()
     table    = Table("lastfm_scrobbles", metadata, autoload_with=engine)
     records  = df.to_dict(orient="records")

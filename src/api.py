@@ -175,13 +175,21 @@ def fetch_all_scrobbles(username: str, api_key: str, base_url: str, from_ts: int
 
     df = pd.DataFrame(all_rows)
     
-    # Convert Genres lists to proper JSON strings BEFORE drop_duplicates() 
-    # (lists are unhashable and cause TypeError)
+    # Convert Genres lists to proper JSON strings BEFORE drop_duplicates()
     if "Genres" in df.columns:
-        df["Genres"] = df["Genres"].apply(lambda x: json.dumps(x) if isinstance(x, list) else x)
+        # Handle NaN/None values first - convert to empty list
+        df["Genres"] = df["Genres"].apply(
+            lambda x: json.dumps(x) if isinstance(x, list) and len(x) > 0 else json.dumps([])
+        )
     
     # Now we can safely drop duplicates
     df = df.drop_duplicates()
+    
+    # Replace empty JSON arrays with NULL to save space (optional)
+    if "Genres" in df.columns:
+        df["Genres"] = df["Genres"].apply(
+            lambda x: None if x == '[]' else x
+        )
     
     log.info("Fetch complete. %d unique rows ready for insertion.", len(df))
     return df
