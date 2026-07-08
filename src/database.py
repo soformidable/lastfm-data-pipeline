@@ -6,6 +6,7 @@ from sqlalchemy.dialects.mysql import insert
 import pandas as pd
 import logging
 import json
+import numpy as np
 
 load_dotenv()
 
@@ -59,27 +60,55 @@ def upsert_scrobbles(engine, df: pd.DataFrame):
         log.info("No new scrobbles to insert.")
         return
 
-    # Clean up NaN and None values
+    # Make a copy to avoid modifying the original
     df = df.copy()
     
-    # Replace NaN with None for all columns
+    log.info("Cleaning data before insertion (removing NaN values)...")
+    
+    # Step 1: Replace ALL NaN/NaT values with None across entire dataframe
+    # This works for numeric NaN, string NaN, and NaT (datetime NaN)
     df = df.where(pd.notna(df), None)
     
-    # Handle Genres column specifically
+    # Step 2: Also handle numpy nan explicitly
+    for col in df.columns:
+        df[col] = df[col].apply(
+            lambda x: None if (pd.isna(x) or (isinstance(x, float) and np.isnan(x))) else x
+        )
+    
+    # Step 3: Handle Genres column specifically
     if "Genres" in df.columns:
-        # Replace empty strings and 'None' strings with NULL
         df["Genres"] = df["Genres"].apply(
             lambda x: None if (x is None or x == '' or x == 'None' or x == '[]') else x
         )
+    
+    # Step 4: Verify no NaN values remain
+    nan_count = df.isna().sum().sum()
+    if nan_count > 0:
+        log.warning("Warning: {} NaN values still present after cleaning".format(nan_count))
+        # Show which columns have NaN
+        for col in df.columns:
+            nan_in_col = df[col].isna().sum()
+            if nan_in_col > 0:
+                log.warning("  Column '{}': {} NaN values".format(col, nan_in_col))
+    
+    log.info("Data cleaned. Preparing for insertion...")
     
     metadata = MetaData()
     table    = Table("lastfm_scrobbles", metadata, autoload_with=engine)
     records  = df.to_dict(orient="records")
 
     stmt = insert(table).values(records).prefix_with("IGNORE")
-    with engine.begin() as conn:
-        result = conn.execute(stmt)
-    log.info("Inserted %d new scrobble row(s).", result.rowcount)
+    
+    try:
+        with engine.begin() as conn:
+            result = conn.execute(stmt)
+        log.info("Inserted %d new scrobble row(s).", result.rowcount)
+    except Exception as e:
+        log.error("Error during insertion: %s", str(e))
+        # Log the problematic records
+        for i, record in enumerate(records[:5]):  # Log first 5 records
+            log.error("Record %d: %s", i, record)
+        raise
 
 # Update function to set the null albums to correct values
 def update_albums(engine):
@@ -92,7 +121,7 @@ def update_albums(engine):
                     U.Date_played,
                     U.Time_played,
                     MIN(S.Album) AS Album,
-                    MIN(U.scrobble_id) AS min_id   -- ← pull the MIN id up here instead
+                    MIN(U.scrobble_id) AS min_id
                 FROM lastfm_scrobbles U
                 INNER JOIN (
                     SELECT Artist, Track, MIN(Album) AS Album
@@ -102,7 +131,7 @@ def update_albums(engine):
                 ) S ON U.Artist = S.Artist AND U.Track = S.Track
                 WHERE U.Album IS NULL
                 GROUP BY U.Artist, U.Track, U.Date_played, U.Time_played
-            ) S ON T.scrobble_id = S.min_id       -- ← join on the ID directly, no subquery needed
+            ) S ON T.scrobble_id = S.min_id
             SET T.Album = S.Album
             WHERE T.Album IS NULL;
                """)
