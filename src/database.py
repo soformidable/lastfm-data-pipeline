@@ -67,7 +67,9 @@ def upsert_scrobbles(engine, df: pd.DataFrame):
     
     # Step 1: Replace ALL NaN/NaT values with None across entire dataframe
     # This works for numeric NaN, string NaN, and NaT (datetime NaN)
+    df = df.astype(object)
     df = df.where(pd.notna(df), None)
+
     
     # Step 2: Also handle numpy nan explicitly
     for col in df.columns:
@@ -80,16 +82,40 @@ def upsert_scrobbles(engine, df: pd.DataFrame):
         df["Genres"] = df["Genres"].apply(
             lambda x: None if (x is None or x == '' or x == 'None' or x == '[]') else x
         )
-    
+
+    # Commented the logs as they report None along with np.nan (pasdas.isna() considers both of them as "Missing")
     # Step 4: Verify no NaN values remain
-    nan_count = df.isna().sum().sum()
-    if nan_count > 0:
-        log.warning("Warning: {} NaN values still present after cleaning".format(nan_count))
-        # Show which columns have NaN
+    # nan_count = df.isna().sum().sum()
+    # if nan_count > 0:
+    #     log.warning("Warning: {} NaN values still present after cleaning".format(nan_count))
+    #     # Show which columns have NaN
+    #     for col in df.columns:
+    #         nan_in_col = df[col].isna().sum()
+    #         if nan_in_col > 0:
+    #             log.warning("  Column '{}': {} NaN values".format(col, nan_in_col))
+
+    missing_count = df.isna().sum().sum()
+
+    if missing_count:
+        log.info(
+            "%d SQL NULL values will be inserted.",
+            missing_count
+    )
+
+    bad_rows = df[df.isna().any(axis=1)]
+
+    if not bad_rows.empty:
+        log.error("Rows containing NaN:")
+        log.error("\n%s", bad_rows.to_string())
+
         for col in df.columns:
-            nan_in_col = df[col].isna().sum()
-            if nan_in_col > 0:
-                log.warning("  Column '{}': {} NaN values".format(col, nan_in_col))
+            if bad_rows[col].isna().any():
+                log.error(
+                    "%s value=%r type=%s",
+                    col,
+                    bad_rows.iloc[0][col],
+                    type(bad_rows.iloc[0][col])
+            )
     
     log.info("Data cleaned. Preparing for insertion...")
     

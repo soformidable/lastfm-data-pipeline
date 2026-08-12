@@ -174,6 +174,9 @@ def fetch_all_scrobbles(username: str, api_key: str, base_url: str, from_ts: int
         log.info("  Page %d / %d fetched (%d rows so far).", page, total_pages, len(all_rows))
 
     df = pd.DataFrame(all_rows)
+
+    ## Checking the types
+    log.info(df.dtypes)
     
     # Convert Genres lists to proper JSON strings BEFORE drop_duplicates()
     if "Genres" in df.columns:
