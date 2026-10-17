@@ -1,7 +1,7 @@
 name: Daily Last.fm Sync
 
 on:
-  # Run at 18:30 UTC every day (= 00:00 IST)
+  # Run at 18:30 UTC every day (=~ 00:00 IST)
   schedule:
     - cron: '30 18 * * *'
   
