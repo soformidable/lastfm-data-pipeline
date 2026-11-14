@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from database import get_engine, ensure_tables, get_latest_scrobble_ts, upsert_scrobbles, upsert_stats
 from api import fetch_all_scrobbles
 from stats import calculate_stats
+import numpy as np
 
 load_dotenv()
 
@@ -33,7 +34,11 @@ def main():
     else:
         log.info("Empty DB detected — performing full historical fetch.")
 
+
     df = fetch_all_scrobbles(LASTFM_USERNAME, LASTFM_API_KEY, LASTFM_BASE_URL, from_ts, fetch_genres=True)
+
+    df = df.replace({np.nan: None, "NaN": None})
+
     upsert_scrobbles(engine, df)
 
     stats = calculate_stats(engine)

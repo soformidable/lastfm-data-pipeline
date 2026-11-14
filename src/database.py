@@ -64,7 +64,7 @@ def upsert_scrobbles(engine, df: pd.DataFrame):
     df = df.copy()
     
     log.info("Cleaning data before insertion (removing NaN values)...")
-    
+
     # Step 1: Replace ALL NaN/NaT values with None across entire dataframe
     # This works for numeric NaN, string NaN, and NaT (datetime NaN)
     df = df.astype(object)
